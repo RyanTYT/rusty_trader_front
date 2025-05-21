@@ -7,9 +7,6 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async ({ mode }) => ({
-    define: {
-      'process.env.RUST_BACKEND_URL': JSON.stringify(process.env.RUST_BACKEND_URL)
-    },
     plugins: [react(), tailwindcss()],
 
     // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

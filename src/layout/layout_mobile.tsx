@@ -17,6 +17,7 @@ import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import TuneIcon from "@mui/icons-material/Tune";
 import WebSocket from "@tauri-apps/plugin-websocket";
 import { load } from "@tauri-apps/plugin-store";
+import { invoke } from "@tauri-apps/api/core";
 
 import styles from "./layout_mobile.module.css";
 
@@ -24,7 +25,7 @@ export default function MobileLayout() {
   const theme = useTheme();
 
   useEffect(() => {
-    const rust_backend_url = process.env.RUST_BACKEND_URL || "";
+    const rust_backend_url = invoke<string>("load_rust_backend_url")
     WebSocket.connect(`ws://${rust_backend_url}`)
       .then((ws) => {
         ws.addListener(async (mismatched_positions) => {

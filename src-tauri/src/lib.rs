@@ -254,6 +254,16 @@ async fn submit_position_mismatches(
 }
 
 #[tauri::command]
+fn load_rust_backend_url() -> String {
+    env::var("RUST_BACKEND_URL").unwrap_or_else(|err| {
+        format!(
+            "Cannot find RUST_BACKEND_URL environment variable: {}",
+            err
+        )
+    })
+}
+
+#[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
@@ -272,7 +282,8 @@ pub fn run() {
             get_portfolio_details,
             submit_position_mismatches,
             pause_strategy,
-            pause_account
+            pause_account,
+            load_rust_backend_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
