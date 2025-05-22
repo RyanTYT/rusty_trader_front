@@ -46,8 +46,11 @@ pub struct MismatchedPosition {
     pub fix: f64,
 }
 
-async fn make_get_request<T: for<'a> Deserialize<'a>>(url: String) -> Result<T, (u16, String)> {
-    let bearer_token = std::env::var("BEARER_TOKEN").expect("BEARER_TOKEN must be set");
+async fn make_get_request<T: for<'a> Deserialize<'a>>(
+    url: String,
+    bearer_token: &String,
+) -> Result<T, (u16, String)> {
+    // let bearer_token = std::env::var("BEARER_TOKEN").expect("BEARER_TOKEN must be set");
 
     let client = Client::new();
     let response_unparsed = client
@@ -84,47 +87,59 @@ async fn make_get_request<T: for<'a> Deserialize<'a>>(url: String) -> Result<T, 
 }
 
 #[tauri::command]
-async fn get_all_strategies() -> Result<Vec<Strategy>, (u16, String)> {
-    let rust_backend_url = env::var("RUST_BACKEND_URL").map_err(|err| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            format!("Cannot find RUST_BACKEND_URL environment variable: {}", err),
-        )
-    })?;
+async fn get_all_strategies<'a>(
+    config: tauri::State<'a, AppConfig>,
+) -> Result<Vec<Strategy>, (u16, String)> {
+    let rust_backend_url = config
+        .0
+        .get("RUST_BACKEND_URL")
+        .expect("RUST_BACKEND_URL must be set");
+    let bearer_token = config
+        .0
+        .get("BEARER_TOKEN")
+        .expect("BEARER_TOKEN must be set");
 
     let url = format!("http://{}/strategy/all", rust_backend_url);
-    make_get_request::<Vec<Strategy>>(url).await
+    make_get_request::<Vec<Strategy>>(url, bearer_token).await
 }
 
 // Swing-Alpha-1
 #[tauri::command(rename_all = "snake_case")]
-async fn get_strategy_details(
+async fn get_strategy_details<'a>(
     strategy_name: &str,
+    config: tauri::State<'a, AppConfig>,
 ) -> Result<PortfolioDataForStrategy, (u16, String)> {
-    let rust_backend_url = env::var("RUST_BACKEND_URL").map_err(|err| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            format!("Cannot find RUST_BACKEND_URL environment variable: {}", err),
-        )
-    })?;
+    let rust_backend_url = config
+        .0
+        .get("RUST_BACKEND_URL")
+        .expect("RUST_BACKEND_URL must be set");
+    let bearer_token = config
+        .0
+        .get("BEARER_TOKEN")
+        .expect("BEARER_TOKEN must be set");
 
     let url = format!(
         "http://{}/get_portfolio/strategy?strategy={}",
         rust_backend_url, strategy_name
     );
-    make_get_request::<PortfolioDataForStrategy>(url).await
+    make_get_request::<PortfolioDataForStrategy>(url, bearer_token).await
 }
 
 #[tauri::command(rename_all = "snake_case")]
-async fn pause_strategy(strategy: String, graceful: bool) -> Result<(u16, String), (u16, String)> {
-    let rust_backend_url = env::var("RUST_BACKEND_URL").map_err(|err| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            format!("Cannot find RUST_BACKEND_URL environment variable: {}", err),
-        )
-    })?;
+async fn pause_strategy<'a>(
+    strategy: String,
+    graceful: bool,
+    config: tauri::State<'a, AppConfig>,
+) -> Result<(u16, String), (u16, String)> {
+    let rust_backend_url = config
+        .0
+        .get("RUST_BACKEND_URL")
+        .expect("RUST_BACKEND_URL must be set");
+    let bearer_token = config
+        .0
+        .get("BEARER_TOKEN")
+        .expect("BEARER_TOKEN must be set");
 
-    let bearer_token = std::env::var("BEARER_TOKEN").expect("BEARER_TOKEN must be set");
     let url = format!("http://{}/strategy/pause", rust_backend_url);
     let client = Client::new();
     let response_unparsed = client
@@ -157,15 +172,19 @@ async fn pause_strategy(strategy: String, graceful: bool) -> Result<(u16, String
 }
 
 #[tauri::command(rename_all = "snake_case")]
-async fn pause_account(graceful: bool) -> Result<(u16, String), (u16, String)> {
-    let rust_backend_url = env::var("RUST_BACKEND_URL").map_err(|err| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            format!("Cannot find RUST_BACKEND_URL environment variable: {}", err),
-        )
-    })?;
+async fn pause_account<'a>(
+    graceful: bool,
+    config: tauri::State<'a, AppConfig>,
+) -> Result<(u16, String), (u16, String)> {
+    let rust_backend_url = config
+        .0
+        .get("RUST_BACKEND_URL")
+        .expect("RUST_BACKEND_URL must be set");
+    let bearer_token = config
+        .0
+        .get("BEARER_TOKEN")
+        .expect("BEARER_TOKEN must be set");
 
-    let bearer_token = std::env::var("BEARER_TOKEN").expect("BEARER_TOKEN must be set");
     let url = format!("http://{}/account/pause", rust_backend_url);
     let client = Client::new();
     let response_unparsed = client
@@ -197,30 +216,34 @@ async fn pause_account(graceful: bool) -> Result<(u16, String), (u16, String)> {
 }
 
 #[tauri::command]
-async fn get_portfolio_details() -> Result<PortfolioData, (u16, String)> {
-    let rust_backend_url = env::var("RUST_BACKEND_URL").map_err(|err| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            format!("Cannot find RUST_BACKEND_URL environment variable: {}", err),
-        )
-    })?;
+async fn get_portfolio_details<'a>(config: tauri::State<'a, AppConfig>) -> Result<PortfolioData, (u16, String)> {
+    let rust_backend_url = config
+        .0
+        .get("RUST_BACKEND_URL")
+        .expect("RUST_BACKEND_URL must be set");
+    let bearer_token = config
+        .0
+        .get("BEARER_TOKEN")
+        .expect("BEARER_TOKEN must be set");
 
     let url = format!("http://{}/get_portfolio", rust_backend_url);
-    make_get_request::<PortfolioData>(url).await
+    make_get_request::<PortfolioData>(url, bearer_token).await
 }
 
 #[tauri::command(rename_all = "snake_case")]
-async fn submit_position_mismatches(
+async fn submit_position_mismatches<'a>(
     fixed_positions: HashMap<String, Vec<MismatchedPosition>>,
+    config: tauri::State<'a, AppConfig>
 ) -> Result<(u16, String), (u16, String)> {
-    let rust_backend_url = env::var("RUST_BACKEND_URL").map_err(|err| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-            format!("Cannot find RUST_BACKEND_URL environment variable: {}", err),
-        )
-    })?;
+    let rust_backend_url = config
+        .0
+        .get("RUST_BACKEND_URL")
+        .expect("RUST_BACKEND_URL must be set");
+    let bearer_token = config
+        .0
+        .get("BEARER_TOKEN")
+        .expect("BEARER_TOKEN must be set");
 
-    let bearer_token = std::env::var("BEARER_TOKEN").expect("BEARER_TOKEN must be set");
     let url = format!("http://{}/current_position/fix", rust_backend_url);
 
     let client = Client::new();
@@ -255,22 +278,14 @@ async fn submit_position_mismatches(
 
 #[tauri::command]
 fn load_rust_backend_url() -> String {
-    env::var("RUST_BACKEND_URL").unwrap_or_else(|err| {
-        format!(
-            "Cannot find RUST_BACKEND_URL environment variable: {}",
-            err
-        )
-    })
+    env::var("RUST_BACKEND_URL")
+        .unwrap_or_else(|err| format!("Cannot find RUST_BACKEND_URL environment variable: {}", err))
 }
 
 #[tauri::command]
 fn load_bearer_token() -> String {
-    env::var("BEARER_TOKEN").unwrap_or_else(|err| {
-        format!(
-            "Cannot find BEARER_TOKEN environment variable: {}",
-            err
-        )
-    })
+    env::var("BEARER_TOKEN")
+        .unwrap_or_else(|err| format!("Cannot find BEARER_TOKEN environment variable: {}", err))
 }
 
 #[tauri::command]
@@ -278,13 +293,21 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[derive(Debug)]
+pub struct AppConfig(pub HashMap<String, String>);
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let mut env = HashMap::new();
+    env.insert("RUST_BACKEND_URL".into(), "rtyt.duckdns.org:2200".into());
+    env.insert("BEARER_TOKEN".into(), "12345".into());
+
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_websocket::init())
         .plugin(tauri_plugin_opener::init())
+        .manage(AppConfig(env))
         .invoke_handler(tauri::generate_handler![
             greet,
             get_strategy_details,
