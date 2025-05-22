@@ -40,31 +40,31 @@ export default function PositionsMismatchModal({
       (await store.get<{
         [stock: string]: MismatchedPosition[];
       }>("mismatched_positions")) || {};
-    // set_positions_mismatch(mismatched_positions);
-    set_positions_mismatch({
-      AAPL: [
-        {
-          strategy: "LOL",
-          local: 13.0,
-          broker: 50,
-          fix: 13.0,
-        },
-        {
-          strategy: "LOL2",
-          local: 10.0,
-          broker: 50,
-          fix: 10.0,
-        },
-      ],
-      NVIDIA: [
-        {
-          strategy: "FK",
-          local: 5.0,
-          broker: 23,
-          fix: 5.0,
-        },
-      ],
-    });
+    set_positions_mismatch(mismatched_positions);
+  //   set_positions_mismatch({
+  //     AAPL: [
+  //       {
+  //         strategy: "LOL",
+  //         local: 13.0,
+  //         broker: 50,
+  //         fix: 13.0,
+  //       },
+  //       {
+  //         strategy: "LOL2",
+  //         local: 10.0,
+  //         broker: 50,
+  //         fix: 10.0,
+  //       },
+  //     ],
+  //     NVIDIA: [
+  //       {
+  //         strategy: "FK",
+  //         local: 5.0,
+  //         broker: 23,
+  //         fix: 5.0,
+  //       },
+  //     ],
+  //   });
   }
   useEffect(() => {
     loadData();

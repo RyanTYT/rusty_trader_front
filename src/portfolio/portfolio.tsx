@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Paper, Typography, Box, Button } from "@mui/material";
-import PieChartIcon from "@mui/icons-material/PieChart";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
-import ShowChartIcon from "@mui/icons-material/ShowChart";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import { Paper, Typography, Box } from "@mui/material";
+// import PieChartIcon from "@mui/icons-material/PieChart";
+// import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+// import ShowChartIcon from "@mui/icons-material/ShowChart";
+// import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+// import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import SelectField from "../components/Select";
 import MetricCard from "../components/MetricCard";
 import Holding from "../components/Holding";
@@ -36,7 +36,7 @@ export default function PortfolioDashboard() {
   const [performanceData, setPerformanceData] = useState(
     [] as { time: number; value: number }[],
   );
-  const [portfolioMetrics, setPortfolioMetrics] = useState([] as metric[]);
+  const [portfolioMetrics, _] = useState([] as metric[]);
   const [topHoldings, setTopHoldings] = useState([] as StrategyHolding[]);
 
   function ceilToNext5Min(timestamp: number): number {

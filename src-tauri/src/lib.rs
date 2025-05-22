@@ -264,6 +264,16 @@ fn load_rust_backend_url() -> String {
 }
 
 #[tauri::command]
+fn load_bearer_token() -> String {
+    env::var("BEARER_TOKEN").unwrap_or_else(|err| {
+        format!(
+            "Cannot find BEARER_TOKEN environment variable: {}",
+            err
+        )
+    })
+}
+
+#[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
@@ -283,7 +293,8 @@ pub fn run() {
             submit_position_mismatches,
             pause_strategy,
             pause_account,
-            load_rust_backend_url
+            load_rust_backend_url,
+            load_bearer_token
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

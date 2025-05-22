@@ -25,18 +25,21 @@ export default function MobileLayout() {
   const theme = useTheme();
 
   useEffect(() => {
-    const rust_backend_url = invoke<string>("load_rust_backend_url")
-    WebSocket.connect(`ws://${rust_backend_url}`)
-      .then((ws) => {
-        ws.addListener(async (mismatched_positions) => {
-          const store = await load("store.json", { autoSave: false });
-          await store.set("mismatched_positions", mismatched_positions);
-          await store.save();
-        });
-      })
-      .catch((err) => {
-        console.log(err);
+    invoke<string>("load_rust_backend_url").then((rust_backend_url) => {
+      invoke<string>("load_bearer_token").then((bearer_token) => {
+        WebSocket.connect(`ws://${rust_backend_url}?token=${bearer_token}`)
+          .then((ws) => {
+            ws.addListener(async (mismatched_positions) => {
+              const store = await load("store.json", { autoSave: false });
+              await store.set("mismatched_positions", mismatched_positions);
+              await store.save();
+            });
+          })
+          .catch((err) => {
+            console.log(err);
+          });
       });
+    });
   }, []);
 
   const SidebarListItem = ({
