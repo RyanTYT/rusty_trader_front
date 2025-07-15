@@ -24,6 +24,7 @@ import {
 // import BarChartIcon from "@mui/icons-material/BarChart";
 // import PercentIcon from "@mui/icons-material/Percent";
 import CloseIcon from "@mui/icons-material/Close";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 // import { Paper, Typography, Box, Button } from "@mui/material";
 import SelectField from "../components/Select";
 import MetricCard from "../components/MetricCard";
@@ -84,6 +85,7 @@ import BottomSheetModal from "../components/MobilePopupModal";
 
 export type PortfolioDataForStrategy = {
   strategy: string;
+  status: "active" | "stopping" | "inactive";
   portfolio: [string, number][];
   metrics: {
     cagr: number;
@@ -121,13 +123,49 @@ export type strategy = {
 
 const ModalContent = ({
   // confirmationPageOpen,
+  strategy_status,
   handlePauseGracefully,
   handlePauseImmediately,
 }: {
   // confirmationPageOpen: boolean;
+  strategy_status: "inactive" | "active" | "stopping";
   handlePauseGracefully: () => void;
   handlePauseImmediately: () => void;
 }) => {
+  if (strategy_status === "active") {
+    return (
+      <>
+        <DialogTitle>
+          Are you sure you want to resume this strategy?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: "pre-line" }}>
+            {`Resuming the strategy takes some time and will not be immediate. \ni.e. The status is reversed but since this is still in beta, i'm not sure if the status functions work perfectly yet so just beware!`}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <VBox>
+            <Button
+              fullWidth
+              variant="outlined"
+              color="warning"
+              onClick={handlePauseGracefully}
+              startIcon={null}
+              sx={{
+                py: 1,
+                fontWeight: 500,
+                textAlign: "left",
+                // bgcolor: "error.main"
+                boxShadow: 0,
+              }}
+            >
+              Pause Gracefully
+            </Button>
+          </VBox>
+        </DialogActions>
+      </>
+    );
+  }
   return (
     <>
       <DialogTitle>How do you want to stop your strategy?</DialogTitle>
@@ -181,10 +219,12 @@ const ModalContent = ({
 
 const ConfirmationDialog = ({
   openModal,
+  strategy_status,
   handleCloseModal,
   handleConfirmSubmit,
 }: {
   openModal: boolean;
+  strategy_status: "active" | "inactive" | "stopping";
   handleCloseModal: () => void;
   handleConfirmSubmit: () => void;
 }) => {
@@ -195,11 +235,14 @@ const ConfirmationDialog = ({
       aria-labelledby="alert-dialog-title"
       aria-describedby="alert-dialog-description"
     >
-      <DialogTitle id="alert-dialog-title">{"Pause Strategy"}</DialogTitle>
+      <DialogTitle id="alert-dialog-title">
+        {strategy_status === "active" ? "Pause Strategy" : "Resume Strategy"}
+      </DialogTitle>
       <DialogContent>
         <DialogContentText id="alert-dialog-description">
-          Are you sure you want to pause this strategy? This cannot be reversed
-          easily.
+          {strategy_status === "active"
+            ? "Are you sure you want to pause this strategy? This cannot be reversed easily."
+            : "Are you sure you want to resume this strategy? This cannot be reversed easily."}
         </DialogContentText>
       </DialogContent>
       <DialogActions>
@@ -212,7 +255,9 @@ const ConfirmationDialog = ({
           variant="contained"
           autoFocus
         >
-          Confirm Pause Strategy
+          {strategy_status === "active"
+            ? "Confirm Pause Strategy"
+            : "Confirm Resume Strategy"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -224,6 +269,9 @@ export default function StrategyDashboard() {
   // const theme = useTheme();
   const [timestep, setTimestep] = useState("5 min");
   const [strategy, setStrategy] = useState("");
+  const [strategy_status, setStrategyStatus] = useState(
+    "" as "active" | "inactive" | "stopping",
+  );
   // const [strategy_arr] = useState(["EMA", "SMA"]);
   const [timesteps_arr] = useState(["5 min", "30 min", "1 day", "1 week"]);
   const [strategies, setStrategies] = useState([] as strategy[]);
@@ -267,12 +315,14 @@ export default function StrategyDashboard() {
     const remainder = timestamp % 300;
     return remainder === 0 ? timestamp : timestamp + (300 - remainder);
   }
+
   useEffect(() => {
     if (!strategy) return;
     invoke<PortfolioDataForStrategy>("get_strategy_details", {
       strategy_name: strategy,
     })
       .then((data) => {
+        setStrategyStatus(data.status);
         const times: { [time: number]: number } = {};
         setPerformanceData(
           data.portfolio
@@ -383,14 +433,24 @@ export default function StrategyDashboard() {
   };
 
   const handleConfirmSubmit = () => {
-    invoke<[number, string]>("pause_strategy", {
-      strategy: strategy,
-      graceful: gracefulClose,
-    }).then(([status, msg]) => {
-      if (status !== 200) {
-        console.log(msg);
-      }
-    });
+    if (strategy_status == "active") {
+      invoke<[number, string]>("resume_strategy", {
+        strategy: strategy,
+      }).then(([status, msg]) => {
+        if (status !== 200) {
+          console.log(msg);
+        }
+      });
+    } else {
+      invoke<[number, string]>("pause_strategy", {
+        strategy: strategy,
+        graceful: gracefulClose,
+      }).then(([status, msg]) => {
+        if (status !== 200) {
+          console.log(msg);
+        }
+      });
+    }
     setGracefulClose(false);
     setCloseStrategyChoicesDialogOpen(false);
     setConfirmationModalOpen(false);
@@ -474,9 +534,11 @@ export default function StrategyDashboard() {
       <Button
         fullWidth
         variant="outlined"
-        color="error"
+        color={strategy_status === "active" ? "error" : "success"}
         onClick={() => setCloseStrategyChoicesDialogOpen(true)}
-        startIcon={<CloseIcon />}
+        startIcon={
+          strategy_status === "active" ? <CloseIcon /> : <PlayArrowIcon />
+        }
         sx={{
           py: 1,
           fontWeight: 500,
@@ -485,7 +547,7 @@ export default function StrategyDashboard() {
           boxShadow: 0,
         }}
       >
-        Close Strategy
+        {strategy_status === "active" ? "Close Strategy" : "Resume Strategy"}
       </Button>
 
       <BottomSheetModal
@@ -493,6 +555,7 @@ export default function StrategyDashboard() {
         onClose={handleStrategyChoicesDialogClose}
       >
         <ModalContent
+          strategy_status={strategy_status}
           handlePauseGracefully={handlePauseGracefulButtonPressed}
           handlePauseImmediately={handlePauseImmediatelyButtonPressed}
         />
@@ -500,6 +563,7 @@ export default function StrategyDashboard() {
 
       <ConfirmationDialog
         openModal={confirmationModalOpen}
+        strategy_status={strategy_status}
         handleCloseModal={() => setConfirmationModalOpen(false)}
         handleConfirmSubmit={handleConfirmSubmit}
       />

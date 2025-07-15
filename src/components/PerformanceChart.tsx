@@ -58,7 +58,8 @@ export default function PerformanceChart({
           mode: 0,
         },
         localization: {
-          priceFormatter: (price: string) => `$${parseFloat(price).toLocaleString(undefined, {maximumFractionDigits:2})}`,
+          priceFormatter: (price: string) =>
+            `$${parseFloat(price).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
         },
       });
 
@@ -76,6 +77,7 @@ export default function PerformanceChart({
         const visibleLogicalRange = newChart
           .timeScale()
           .getVisibleLogicalRange()!;
+        if (visibleLogicalRange == null) return;
         newChart.timeScale().setVisibleLogicalRange({
           from: visibleLogicalRange.to - 500,
           to: visibleLogicalRange.to,
