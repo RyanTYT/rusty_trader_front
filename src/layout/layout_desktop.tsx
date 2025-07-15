@@ -14,7 +14,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import PieChartOutlineIcon from "@mui/icons-material/PieChartOutline";
-import AddIcon from "@mui/icons-material/Add";
+import ListAltIcon from '@mui/icons-material/ListAlt';
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import TuneIcon from "@mui/icons-material/Tune";
 import WebSocket from "@tauri-apps/plugin-websocket";
@@ -136,7 +136,7 @@ export default function DesktopLayout() {
         <Divider />
         <List>
           {[
-            ["Add Strategy", "/add_strategy", <AddIcon />],
+            ["Logs", "/logs", <ListAltIcon />],
             ["Notifications", "/notifications", <NotificationsNoneIcon />],
             ["Settings", "/settings", <TuneIcon />],
           ].map((content) => (

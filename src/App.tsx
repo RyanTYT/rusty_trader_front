@@ -7,7 +7,8 @@ import MobileLayout from "./layout/layout_mobile";
 import { platform } from "@tauri-apps/plugin-os";
 import SettingsPage from "./settings/settings";
 import Notifications from "./notifications/notifications";
-import PythonCodeEditor from "./add_strategy/add_strategy";
+// import PythonCodeEditor from "./add_strategy/add_strategy";
+import LogList from "./add_strategy/LogsList";
 
 function App() {
   const platformName = platform();
@@ -28,7 +29,7 @@ function App() {
         <Route path="/portfolio" element={<PortfolioDashboard />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/notifications" element={<Notifications />} />
-        <Route path="/add_strategy" element={<PythonCodeEditor />} />
+        <Route path="/logs" element={<LogList />} />
       </Route>
     </Routes>
   );
