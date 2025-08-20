@@ -1,4 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use chrono_tz::America::New_York;
 use http::StatusCode;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -45,6 +46,20 @@ struct PortfolioDataForStrategy {
 struct PortfolioData {
     strategies: Vec<PortfolioDataForStrategy>,
     portfolio: Vec<(chrono::DateTime<chrono::Utc>, f64)>, // assuming "number" can be float (JS treats number as float by default)
+}
+
+#[derive(Serialize, Debug)]
+struct TZPortfolioDataForStrategy {
+    strategy: String,
+    status: Status,
+    portfolio: Vec<(chrono::DateTime<chrono_tz::Tz>, f64)>, // assuming "number" can be float (JS treats number as float by default)
+    metrics: PortfolioMetrics,
+}
+
+#[derive(Serialize, Debug)]
+struct TZPortfolioData {
+    strategies: Vec<TZPortfolioDataForStrategy>,
+    portfolio: Vec<(chrono::DateTime<chrono_tz::Tz>, f64)>, // assuming "number" can be float (JS treats number as float by default)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +124,23 @@ async fn make_get_request<T: for<'a> Deserialize<'a>>(
         )
     })?;
 
+    // // Read body as text first
+    // let body_text = response.text().await.map_err(|err| {
+    //     (
+    //         StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+    //         format!("Error reading body as text: {}", err),
+    //     )
+    // })?;
+    //
+    // // Log or print the body text for debugging
+    // println!("Raw response body: {}", body_text);
+    //
+    // let result: T = serde_json::from_str(&body_text).map_err(|err| {
+    //     (
+    //         StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+    //         format!("Error during JSON deserialization: {}", err),
+    //     )
+    // })?;
     let result = response.json::<T>().await.map_err(|err| {
         // Ok(parsed) => tauri::ipc::Response::new(parsed),
         (
@@ -142,7 +174,7 @@ async fn get_all_strategies<'a>(
 async fn get_strategy_details<'a>(
     strategy_name: &str,
     config: tauri::State<'a, AppConfig>,
-) -> Result<PortfolioDataForStrategy, (u16, String)> {
+) -> Result<TZPortfolioDataForStrategy, (u16, String)> {
     let rust_backend_url = config
         .0
         .get("RUST_BACKEND_URL")
@@ -156,7 +188,21 @@ async fn get_strategy_details<'a>(
         "http://{}/get_portfolio/strategy?strategy={}",
         rust_backend_url, strategy_name
     );
-    make_get_request::<PortfolioDataForStrategy>(url, bearer_token, serde_json::json!({})).await
+    let response =
+        make_get_request::<PortfolioDataForStrategy>(url, bearer_token, serde_json::json!({}))
+            .await?;
+
+    let localised_portfolio_values: Vec<(chrono::DateTime<chrono_tz::Tz>, f64)> = response
+        .portfolio
+        .iter()
+        .map(|dt| (dt.0.with_timezone(&New_York), dt.1))
+        .collect();
+    Ok(TZPortfolioDataForStrategy {
+        strategy: response.strategy,
+        status: response.status,
+        portfolio: localised_portfolio_values,
+        metrics: response.metrics,
+    })
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -296,7 +342,7 @@ async fn pause_account<'a>(
 #[tauri::command]
 async fn get_portfolio_details<'a>(
     config: tauri::State<'a, AppConfig>,
-) -> Result<PortfolioData, (u16, String)> {
+) -> Result<TZPortfolioData, (u16, String)> {
     let rust_backend_url = config
         .0
         .get("RUST_BACKEND_URL")
@@ -307,7 +353,35 @@ async fn get_portfolio_details<'a>(
         .expect("BEARER_TOKEN must be set");
 
     let url = format!("http://{}/get_portfolio", rust_backend_url);
-    make_get_request::<PortfolioData>(url, bearer_token, serde_json::json!({})).await
+    let response =
+        make_get_request::<PortfolioData>(url, bearer_token, serde_json::json!({})).await?;
+
+    let localised_strategy_values: Vec<TZPortfolioDataForStrategy> = response
+        .strategies
+        .iter()
+        .map(|strategy| {
+            let localised_portfolio_values = strategy
+                .portfolio
+                .iter()
+                .map(|dt_val| (dt_val.0.with_timezone(&New_York), dt_val.1))
+                .collect();
+            TZPortfolioDataForStrategy {
+                strategy: strategy.strategy.clone(),
+                status: strategy.status.clone(),
+                portfolio: localised_portfolio_values,
+                metrics: strategy.metrics.clone(),
+            }
+        })
+        .collect();
+    let localised_portfolio_values = response
+        .portfolio
+        .iter()
+        .map(|dt| (dt.0.with_timezone(&New_York), dt.1))
+        .collect();
+    Ok(TZPortfolioData {
+        strategies: localised_strategy_values,
+        portfolio: localised_portfolio_values,
+    })
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -386,12 +460,9 @@ pub struct LogFilter {
 #[allow(non_snake_case)]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct LogFile {
-    asctime: String,
-    levelname: String,
+    time: String,
+    level: String,
     name: String,
-    module: String,
-    funcName: String,
-    lineno: String,
     message: String,
 }
 

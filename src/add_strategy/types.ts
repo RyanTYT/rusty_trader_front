@@ -6,12 +6,18 @@ export type LogFilter = {
     start: number | null;
 };
 
+// export type LogFileEntry = {
+//     asctime: string;
+//     levelname: string;
+//     name: string;
+//     module: string;
+//     funcName: string;
+//     lineno: string;
+//     message: string;
+// };
 export type LogFileEntry = {
-    asctime: string;
-    levelname: string;
+    time: string;
+    level: string;
     name: string;
-    module: string;
-    funcName: string;
-    lineno: string;
     message: string;
 };

@@ -28,3 +28,4 @@ reqwest = { version = "0.12.15", default-features = false, features = ["rustls-t
 http = "1.3.1"
 chrono = { version = "0.4", features = ["serde"] }
 tauri-plugin-store = "2"
+chrono-tz = "0.10.4"

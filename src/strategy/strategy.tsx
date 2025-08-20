@@ -322,6 +322,7 @@ export default function StrategyDashboard() {
       strategy_name: strategy,
     })
       .then((data) => {
+        console.log(data);
         setStrategyStatus(data.status);
         const times: { [time: number]: number } = {};
         setPerformanceData(

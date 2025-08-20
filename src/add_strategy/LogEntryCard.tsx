@@ -30,7 +30,8 @@ export function getLogLevelColor(level: string, theme?: Theme): string {
 
 export default function LogEntryCard({ entry }: { entry: LogFileEntry }) {
   const [expanded, setExpanded] = useState(false);
-  const { asctime, levelname, name, module, funcName, lineno, message } = entry;
+  // const { asctime, levelname, name, module, funcName, lineno, message } = entry;
+  const { time, level, name, message } = entry;
 
   return (
     <Paper
@@ -38,7 +39,7 @@ export default function LogEntryCard({ entry }: { entry: LogFileEntry }) {
       sx={{
         px: 2,
         py: 1.5,
-        borderLeft: `5px solid ${getLogLevelColor(levelname)}`,
+        borderLeft: `5px solid ${getLogLevelColor(level)}`,
         bgcolor: expanded ? "grey.50" : "background.paper",
         transition: "background-color 0.2s",
       }}
@@ -52,19 +53,19 @@ export default function LogEntryCard({ entry }: { entry: LogFileEntry }) {
       >
         <Box>
           <Chip
-            label={levelname}
+            label={level}
             size="small"
             sx={{
-              backgroundColor: getLogLevelColor(levelname),
+              backgroundColor: getLogLevelColor(level),
               color: "white",
               fontWeight: 600,
               mr: 1,
             }}
           />
           <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            {asctime} <br />
+            {time} <br />
             {name}: <br />
-            {module}.{funcName}:{lineno}
+            {/* {module}.{funcName}:{lineno} */}
           </Typography>
         </Box>
         <IconButton size="small" onClick={() => setExpanded(!expanded)}>
