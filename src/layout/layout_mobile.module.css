@@ -1,0 +1,84 @@
+@keyframes spanAnimateOpen {
+    from {
+        margin-left: initial;
+        opacity: 0;
+        width: 0px;
+    }
+    to {
+        margin-left: 24px;
+        opacity: 1;
+        width: fit-content;
+    }
+}
+
+@keyframes spanAnimateClose {
+    0% {
+        margin-left: 24px;
+        opacity: 1;
+        width: fit-content;
+    }
+    100% {
+        margin-left: initial;
+        opacity: 0;
+        width: 0px;
+    }
+}
+
+@keyframes arrowAnimateOpen {
+    from {
+        justify-content: flex-end;
+        width: 49px;
+    }
+    to {
+        justify-content: flex-end;
+        width: 100%;
+    }
+}
+
+@keyframes arrowAnimateClose {
+    from {
+        justify-content: flex-end;
+        width: 100%;
+    }
+    to {
+        justify-content: flex-end;
+        /* width: calc((var(--close-width) - 16 + 21) / 2); */
+        width: 49px;
+    }
+}
+
+:root {
+    --close-width: 61px;
+}
+
+.open_arrow {
+    width: 100%;
+    justify-content: flex-end;
+    animation-name: arrowAnimateOpen;
+    animation-duration: 0.225s;
+}
+
+.close_arrow {
+    width: var(--close-width);
+    /* width: 61px; */
+    justify-content: center;
+    animation-name: arrowAnimateClose;
+    animation-duration: 0.225s;
+}
+
+.open_span {
+    margin-left: 24px;
+    animation-name: spanAnimateOpen;
+    animation-duration: 0.225s;
+    opacity: 1;
+    width: fit-content;
+}
+
+.close_span {
+    margin-left: initial;
+    animation-name: spanAnimateClose;
+    animation-duration: 0.225s;
+    white-space: nowrap;
+    opacity: 0;
+    width: 0px;
+}
