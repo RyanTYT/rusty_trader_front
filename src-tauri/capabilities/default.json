@@ -8,9 +8,9 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "websocket:default",
     "os:default",
-    "websocket:default",
-    "store:default"
+    "store:default",
+    "log:default",
+    "notification:default"
   ]
 }

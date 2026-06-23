@@ -1,55 +1,100 @@
-import { ReactNode, useEffect } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { ReactNode, useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { useTheme } from "@mui/material/styles";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
 import Divider from "@mui/material/Divider";
+import NewspaperIcon from "@mui/icons-material/Newspaper";
 import Stack from "@mui/material/Stack";
 
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import PieChartOutlineIcon from "@mui/icons-material/PieChartOutline";
-import ListAltIcon from '@mui/icons-material/ListAlt';
+import ListAltIcon from "@mui/icons-material/ListAlt";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import TuneIcon from "@mui/icons-material/Tune";
-import WebSocket from "@tauri-apps/plugin-websocket";
 import { load } from "@tauri-apps/plugin-store";
-import { invoke } from "@tauri-apps/api/core";
 
-import styles from "./layout_mobile.module.css";
+import { listen } from "@tauri-apps/api/event";
+import { Badge } from "@mui/material";
 
 export default function MobileLayout() {
   const theme = useTheme();
+  const [numNotifs, setNumNotifs] = useState(0);
+
+  const location = useLocation();
 
   useEffect(() => {
-    invoke<string>("load_rust_backend_url").then((rust_backend_url) => {
-      invoke<string>("load_bearer_token").then((bearer_token) => {
-        WebSocket.connect(`ws://${rust_backend_url}?token=${bearer_token}`)
-          .then((ws) => {
-            ws.addListener(async (mismatched_positions) => {
-              const store = await load("store.json", { autoSave: false });
-              await store.set("mismatched_positions", mismatched_positions);
-              await store.save();
-            });
-          })
-          .catch((err) => {
-            console.log(err);
-          });
+    const loadNotifs = async () => {
+      const store = await load("store.json", { autoSave: false });
+      let curr_notifications = await store.get<any[]>("notifications");
+      if (!curr_notifications) {
+        return;
+      }
+
+      setNumNotifs(curr_notifications.filter((notif) => notif.read).length);
+    };
+
+    const listen_to_backend = async () => {
+      // NEED TO CHECK THIS
+      await listen("ws-event", async (ws_event_res) => {
+        const ws_event = JSON.parse(ws_event_res.payload as string);
+        if (ws_event.type === "notification") {
+          const store = await load("store.json", { autoSave: false });
+          let curr_notifications = await store.get<any[]>("notifications");
+
+          if (!Array.isArray(curr_notifications)) {
+            curr_notifications = [];
+          }
+
+          const new_notif = {
+            read: false,
+            ...ws_event,
+          };
+          const new_notifs = [new_notif, ...curr_notifications];
+          setNumNotifs(numNotifs + 1);
+          await store.set("notifications", new_notifs);
+          await store.save();
+        }
       });
-    });
+    };
+
+    window.addEventListener("refresh-notifications", loadNotifs);
+    loadNotifs();
+    listen_to_backend();
   }, []);
+
+  // useEffect(() => {
+  //   invoke<string>("load_rust_backend_url").then((rust_backend_url) => {
+  //     invoke<string>("load_bearer_token").then((bearer_token) => {
+  //       WebSocket.connect(`ws://${rust_backend_url}?token=${bearer_token}`)
+  //         .then((ws) => {
+  //           ws.addListener(async (mismatched_positions) => {
+  //             const store = await load("store.json", { autoSave: false });
+  //             await store.set("mismatched_positions", mismatched_positions);
+  //             await store.save();
+  //           });
+  //         })
+  //         .catch((err) => {
+  //           console.log(err);
+  //         });
+  //     });
+  //   });
+  // }, []);
 
   const SidebarListItem = ({
     text,
     path,
     icon,
+    selected,
   }: {
     text: string;
     path: string;
     icon: ReactNode;
+    selected: boolean;
   }) => {
     return (
       <NavLink to={path}>
@@ -61,6 +106,7 @@ export default function MobileLayout() {
               borderRadius: "10%",
               width: "fit-content",
             }}
+            selected={selected}
           >
             <ListItemIcon
               sx={{
@@ -71,7 +117,8 @@ export default function MobileLayout() {
               {icon}
             </ListItemIcon>
 
-            <ListItemText primary={text} className={styles.close_span} />
+            {// <ListItemText primary={text} className={styles.close_span} />
+            }
           </ListItemButton>
         </ListItem>
       </NavLink>
@@ -99,6 +146,7 @@ export default function MobileLayout() {
           display: "flex",
           flexDirection: "row",
           zIndex: "1000",
+          overflow: "auto"
         }}
       >
         <List
@@ -109,18 +157,41 @@ export default function MobileLayout() {
           {[
             ["Strategy", "/strategy", <AutoGraphIcon />],
             ["Portfolio", "/portfolio", <PieChartOutlineIcon />],
+            ["Knowledge Base", "/knowledge_base", <NewspaperIcon />],
+            [
+              "News Ideas",
+              "/news_ideas",
+              <Badge
+                badgeContent={numNotifs}
+                color="error"
+                invisible={numNotifs === 0}
+              >
+                <LightbulbOutlinedIcon />
+              </Badge>,
+            ],
           ].map((content) => (
             <SidebarListItem
               key={content[0] as string}
               text={content[0] as string}
               path={content[1] as string}
               icon={content[2] as ReactNode}
+              selected={content[1] === location.pathname}
             />
           ))}
           <Divider orientation="vertical" flexItem />
           {[
             ["Logs", "/logs", <ListAltIcon />],
-            ["Notifications", "/notifications", <NotificationsNoneIcon />],
+            [
+              "Notifications",
+              "/notifications",
+              <Badge
+                badgeContent={numNotifs}
+                color="error"
+                invisible={numNotifs === 0}
+              >
+                <NotificationsNoneIcon />
+              </Badge>,
+            ],
             ["Settings", "/settings", <TuneIcon />],
           ].map((content) => (
             <SidebarListItem
@@ -128,6 +199,7 @@ export default function MobileLayout() {
               text={content[0] as string}
               path={content[1] as string}
               icon={content[2] as ReactNode}
+              selected={content[1] === location.pathname}
             />
           ))}
         </List>

@@ -80,5 +80,6 @@
     animation-duration: 0.225s;
     white-space: nowrap;
     opacity: 0;
+    display: none;
     width: 0px;
 }

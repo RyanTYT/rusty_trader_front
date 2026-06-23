@@ -97,7 +97,11 @@ export default function LogViewerDrawer({
         filename: file,
       })
         .then((a) => a as LogFileEntry[])
-        .catch((_) => [] as LogFileEntry[]);
+        .catch((err) => {
+          const [status, msg] = err;
+          console.error(`Failed to fetch logs via get_log: (${status}) ${msg}`);
+          return [] as LogFileEntry[];
+        });
       // const newEntries = logEntries;
       console.log(newEntries);
       setEntries((prev) => (reset ? newEntries : [...prev, ...newEntries]));

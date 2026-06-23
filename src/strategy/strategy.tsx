@@ -83,6 +83,12 @@ import BottomSheetModal from "../components/MobilePopupModal";
 //   { symbol: "NVDA", price: 940.18, position: 30 },
 // ];
 
+type OptionDetails = {
+  expiry: string;
+  strike: number;
+  multiplier: number;
+  option_type: number;
+};
 export type PortfolioDataForStrategy = {
   strategy: string;
   status: "active" | "stopping" | "inactive";
@@ -96,7 +102,13 @@ export type PortfolioDataForStrategy = {
     win_rate: number;
     avg_trade_return: number;
     positions: {
-      [stock: string]: [number, number, number];
+      [stock: string]: {
+        avg_price: number;
+        quantity: number;
+        last_pnl: number;
+        contract_type: string;
+        option_details: OptionDetails | null;
+      };
     };
   };
 };
@@ -116,9 +128,13 @@ export type position = {
 
 export type strategy = {
   strategy: string;
-  capital: number;
-  initial_capital: number;
   status: string;
+};
+
+export type strategy_val = {
+  strategy: string;
+  status: string;
+  sgd_value: number;
 };
 
 const ModalContent = ({
@@ -264,6 +280,12 @@ const ConfirmationDialog = ({
   );
 };
 
+const Mapper = {
+  "1 week": 7 * 24 * 60 * 60,
+  "1 month": 30 * 24 * 60 * 60,
+  "No cutoff": 10000 * 24 * 60 * 60,
+};
+
 // Main Dashboard Component
 export default function StrategyDashboard() {
   // const theme = useTheme();
@@ -274,6 +296,12 @@ export default function StrategyDashboard() {
   );
   // const [strategy_arr] = useState(["EMA", "SMA"]);
   const [timesteps_arr] = useState(["5 min", "30 min", "1 day", "1 week"]);
+  const [cutoffOptions] = useState([
+    "1 week",
+    "1 month",
+    "No cutoff",
+  ] as (keyof typeof Mapper)[]);
+  const [cutoff, setCutoff] = useState("1 month" as keyof typeof Mapper);
   const [strategies, setStrategies] = useState([] as strategy[]);
   const [performanceData, setPerformanceData] = useState(
     [] as { time: number; value: number }[],
@@ -307,7 +335,12 @@ export default function StrategyDashboard() {
   useEffect(() => {
     invoke<strategy[]>("get_all_strategies").then((strategies) => {
       setStrategies(strategies);
-      setStrategy(strategies[0].strategy);
+      const strat = sessionStorage.getItem("strategy");
+      if (strat === null) {
+        setStrategy(strategies[0].strategy);
+      } else {
+        setStrategy(strat);
+      }
     });
   }, []);
 
@@ -318,8 +351,10 @@ export default function StrategyDashboard() {
 
   useEffect(() => {
     if (!strategy) return;
+    const cutoff_sec = Mapper[cutoff];
     invoke<PortfolioDataForStrategy>("get_strategy_details", {
       strategy_name: strategy,
+      cutoff: cutoff_sec,
     })
       .then((data) => {
         console.log(data);
@@ -403,15 +438,15 @@ export default function StrategyDashboard() {
             const position = data.metrics.positions[key];
             return {
               stock: key,
-              avg_price: position[0],
-              quantity: position[1],
-              recent_pnl: position[2],
+              avg_price: position.avg_price,
+              quantity: position.quantity,
+              recent_pnl: position.last_pnl,
             };
           }),
         );
       })
       .catch((err) => console.log(err));
-  }, [strategy]);
+  }, [strategy, cutoff]);
 
   const [closeStrategyChoicesDialogOpen, setCloseStrategyChoicesDialogOpen] =
     useState(false);
@@ -466,7 +501,10 @@ export default function StrategyDashboard() {
       <Box sx={{ width: "100%" }}>
         <SelectField
           val={strategy}
-          setVal={setStrategy}
+          setVal={(val) => {
+            sessionStorage.setItem("strategy", val);
+            setStrategy(val);
+          }}
           options={strategies.map((strat) => strat.strategy)}
         />
       </Box>
@@ -476,11 +514,22 @@ export default function StrategyDashboard() {
         <Typography variant="h3">Performance</Typography>
 
         <HBox>
-          <SelectField
-            val={timestep}
-            setVal={setTimestep}
-            options={timesteps_arr}
-          />
+          <VBox>
+            <Typography variant="caption">Timestep</Typography>
+            <SelectField
+              val={timestep}
+              setVal={setTimestep}
+              options={timesteps_arr}
+            />
+          </VBox>
+          <VBox>
+            <Typography variant="caption">Cutoff</Typography>
+            <SelectField
+              val={cutoff}
+              setVal={(val) => setCutoff(val as keyof typeof Mapper)}
+              options={cutoffOptions}
+            />
+          </VBox>
         </HBox>
 
         <Box sx={{ marginTop: 2 }}>
@@ -518,6 +567,44 @@ export default function StrategyDashboard() {
           Positions
         </Typography>
 
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            py: 1.5,
+          }}
+        >
+          <Typography variant="body1" sx={{ fontWeight: 900, flex: 1 }}>
+            Asset
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontWeight: 900, flex: 1, textAlign: "center" }}
+          >
+            Average Price
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontWeight: 900, flex: 1, textAlign: "center" }}
+          >
+            Quantity
+          </Typography>
+
+          <Typography
+            variant="body2"
+            sx={{
+              flex: 1,
+              textAlign: "center", // Keeps the last column aligned to the edge
+              fontWeight: 900,
+            }}
+          >
+            Recent PNL
+          </Typography>
+        </Box>
         {positions.length > 0 ? (
           positions.map((position, index) => (
             <Position

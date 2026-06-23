@@ -19,6 +19,7 @@ export default function PortfolioPieChart({
   data: {
     name: string;
     value: number;
+    percentage: number;
     color: string;
   }[];
 }) {
@@ -43,7 +44,7 @@ export default function PortfolioPieChart({
           <div style={{ color: payload[0].payload.color, fontWeight: 500 }}>
             {payload[0].name}
           </div>
-          <div>{payload[0].value}% of portfolio</div>
+          <div>${payload[0].value?.toLocaleString()}</div>
         </Box>
       );
     }
@@ -60,7 +61,7 @@ export default function PortfolioPieChart({
           display: "flex",
           flexWrap: "wrap",
           justifyContent: "center",
-          gap: 2,
+          gap: 1,
           mt: 2,
         }}
       >
@@ -84,7 +85,7 @@ export default function PortfolioPieChart({
                 }}
               />
               <span>
-                {entry.value} ({data[index].value}%)
+                {entry.value} ({data[index].percentage}%)
               </span>
             </Box>
           ),

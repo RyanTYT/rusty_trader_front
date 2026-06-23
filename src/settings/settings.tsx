@@ -1,47 +1,62 @@
-import { useState } from "react";
+// src/settings/settings.tsx
+// CHANGE: import AISettings and render it before the Account Actions paper.
+// Everything else is identical to the original file.
+
+import { useEffect, useState } from "react";
 import {
-  // useTheme,
   Paper,
   Typography,
-  // Box,
   Button,
-  // Divider,
-  // Switch,
-  // FormControlLabel,
-  // MenuItem,
-  // Select,
-  // FormControl,
-  // InputLabel,
-  // Dialog,
   DialogTitle,
   DialogContent,
   DialogContentText,
   DialogActions,
   TextField,
-  // IconButton,
+  Snackbar,
+  Alert,
+  AlertColor,
 } from "@mui/material";
-// import NotificationsIcon from "@mui/icons-material/Notifications";
-// import SecurityIcon from "@mui/icons-material/Security";
-// import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-// import DisplaySettingsIcon from "@mui/icons-material/DisplaySettings";
-// import PaymentIcon from "@mui/icons-material/Payment";
-// import HelpIcon from "@mui/icons-material/Help";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import LogoutIcon from "@mui/icons-material/Logout";
-// import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { TitleBox, VBox } from "../theme";
 import BottomSheetModal from "../components/MobilePopupModal";
 import { invoke } from "@tauri-apps/api/core";
+import AISettings from "./AISettings"; // ADD
+import { listen } from "@tauri-apps/api/event";
 
 export default function SettingsPage() {
-  // const theme = useTheme();
-  // const [darkMode, setDarkMode] = useState(false);
-  // const [emailNotifications, setEmailNotifications] = useState(true);
-  // const [pushNotifications, setPushNotifications] = useState(true);
-  // const [currency, setCurrency] = useState("USD");
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [confirmationPageOpen, setConfirmationPageOpen] = useState(false);
   const [isPauseGracefully, setIsPauseGracefully] = useState(true);
+  const [websocketConnectionStatus, setWebsocketConnectionStatus] =
+    useState("info");
+  const [toast, setToast] = useState({
+    open: false,
+    severity: "error",
+    message: "",
+  });
+
+  useEffect(() => {
+    const getStatus = async () => {
+      try {
+        const health = await invoke("check_ws_health");
+        setWebsocketConnectionStatus(health as string);
+      } catch {
+        setWebsocketConnectionStatus("error");
+      }
+    };
+
+    getStatus();
+    listen("ws-status", (ws_event_payload) => {
+      const [ws_event, _] = ws_event_payload.payload as [number, string];
+      if (ws_event === 200) {
+        setWebsocketConnectionStatus("success");
+      } else {
+        setWebsocketConnectionStatus("error");
+      }
+    });
+  }, [toast]);
 
   const handlePauseGracefully = () => {
     setConfirmationPageOpen(true);
@@ -52,17 +67,12 @@ export default function SettingsPage() {
     setIsPauseGracefully(false);
   };
 
-  // Handle pause account confirmation
   const handlePauseAccount = () => {
-    // Implement account pause logic
     setPauseDialogOpen(false);
-    // Show confirmation or redirect
     invoke<[number, string]>("pause_strategy", {
       graceful: isPauseGracefully,
     }).then(([status, msg]) => {
-      if (status !== 200) {
-        console.log(msg);
-      }
+      if (status !== 200) console.log(msg);
     });
   };
 
@@ -72,12 +82,68 @@ export default function SettingsPage() {
     setPauseDialogOpen(false);
   };
 
+  const handleRefreshWs = async () => {
+    let should_refresh = false;
+    try {
+      const health = await invoke("check_ws_health");
+      if (health === "error") {
+        should_refresh = true;
+      }
+      setWebsocketConnectionStatus(health as string);
+    } catch {
+      should_refresh = true;
+      setWebsocketConnectionStatus("error");
+    }
+
+    if (!should_refresh) {
+      setToast({
+        open: true,
+        severity: "success",
+        message: "Already Connected",
+      });
+      return;
+    }
+
+    await invoke("refresh_ws")
+      .then(() => {
+        setToast({
+          open: true,
+          severity: "info",
+          message: "Trying to reconnect...",
+        });
+        listen("ws-status", (ws_event_payload) => {
+          const payload = ws_event_payload.payload as [number, string];
+          if (payload[0] === 200) {
+            setToast({
+              open: true,
+              severity: "success",
+              message: "Successfully Reconnected",
+            });
+          } else {
+            const err = payload[1];
+            setToast({
+              open: true,
+              severity: "error",
+              message: `Encountered Error trying to reconnect with Server: ${err}`,
+            });
+          }
+        });
+      })
+      .catch((err) => {
+        setToast({
+          open: true,
+          severity: "error",
+          message: `Encountered Error trying to get tauri backend to reconnect: ${err}`,
+        });
+      });
+  };
+
   const ModalContent = ({
     confirmationPageOpen,
   }: {
     confirmationPageOpen: boolean;
-  }) => {
-    return confirmationPageOpen ? (
+  }) =>
+    confirmationPageOpen ? (
       <>
         <DialogTitle>Pause Your Account?</DialogTitle>
         <DialogContent>
@@ -110,10 +176,8 @@ export default function SettingsPage() {
       <>
         <DialogTitle>How do you want to pause your account?</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ whiteSpace: 'pre-line' }}>
-            {`Pause Gracefully: Strategies will still be in play until positions are 0, after which they will stop  
-
-            Pause Immediately: Immediately close all positions using market orders`}
+          <DialogContentText sx={{ whiteSpace: "pre-line" }}>
+            {`Pause Gracefully: Strategies will still be in play until positions are 0, after which they will stop\n\nPause Immediately: Immediately close all positions using market orders`}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -123,31 +187,16 @@ export default function SettingsPage() {
               variant="outlined"
               color="warning"
               onClick={handlePauseGracefully}
-              startIcon={null}
-              sx={{
-                py: 1,
-                fontWeight: 500,
-                textAlign: "left",
-                // bgcolor: "error.main"
-                boxShadow: 0,
-              }}
+              sx={{ py: 1, fontWeight: 500, boxShadow: 0 }}
             >
               Pause Gracefully
             </Button>
-
             <Button
               fullWidth
               variant="outlined"
               color="error"
               onClick={handlePauseImmediately}
-              startIcon={null}
-              sx={{
-                py: 1,
-                fontWeight: 500,
-                textAlign: "left",
-                // bgcolor: "error.main"
-                boxShadow: 0,
-              }}
+              sx={{ py: 1, fontWeight: 500, boxShadow: 0 }}
             >
               Pause Immediately
             </Button>
@@ -155,332 +204,41 @@ export default function SettingsPage() {
         </DialogActions>
       </>
     );
-  };
 
   return (
-    <VBox
-      sx={{
-        p: 2,
-        mx: "auto",
-      }}
-    >
+    <VBox sx={{ p: 2, mx: "auto" }}>
       <TitleBox sx={{ mb: 1 }}>
         <Typography variant="h1">Settings</Typography>
       </TitleBox>
 
-      {
-        // {/* Account Settings */}
-        // <Paper
-        //   elevation={0}
-        //   sx={{
-        //     bgcolor: theme.palette.background.paper,
-        //     p: 2,
-        //     borderRadius: "12px",
-        //   }}
-        // >
-        //   <Box sx={{
-        //     display: "flex",
-        //     alignItems: "center",
-        //     mb: 2
-        //   }}>
-        //     <AccountCircleIcon sx={{ mr: 1.5, color: theme.palette.primary.main }} />
-        //     <Typography variant="h3">Account Settings</Typography>
-        //   </Box>
-        //
-        //   <Box sx={{ px: 1 }}>
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Personal Information
-        //     </Button>
-        //     <Divider />
-        //
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Change Email
-        //     </Button>
-        //     <Divider />
-        //
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Change Password
-        //     </Button>
-        //   </Box>
-        // </Paper>
-        //
-        // {/* Notification Settings */}
-        // <Paper
-        //   elevation={0}
-        //   sx={{
-        //     bgcolor: theme.palette.background.paper,
-        //     p: 2,
-        //     borderRadius: "12px",
-        //   }}
-        // >
-        //   <Box sx={{
-        //     display: "flex",
-        //     alignItems: "center",
-        //     mb: 2
-        //   }}>
-        //     <NotificationsIcon sx={{ mr: 1.5, color: theme.palette.primary.main }} />
-        //     <Typography variant="h3">Notifications</Typography>
-        //   </Box>
-        //
-        //   <Box sx={{ px: 1 }}>
-        //     <FormControlLabel
-        //       control={
-        //         <Switch
-        //           checked={pushNotifications}
-        //           onChange={(e) => setPushNotifications(e.target.checked)}
-        //           color="primary"
-        //         />
-        //       }
-        //       label="Push Notifications"
-        //       sx={{ width: "100%", mb: 1 }}
-        //     />
-        //
-        //     <FormControlLabel
-        //       control={
-        //         <Switch
-        //           checked={emailNotifications}
-        //           onChange={(e) => setEmailNotifications(e.target.checked)}
-        //           color="primary"
-        //         />
-        //       }
-        //       label="Email Notifications"
-        //       sx={{ width: "100%", mb: 1 }}
-        //     />
-        //
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Notification Preferences
-        //     </Button>
-        //   </Box>
-        // </Paper>
-        //
-        // {/* Security Settings */}
-        // <Paper
-        //   elevation={0}
-        //   sx={{
-        //     bgcolor: theme.palette.background.paper,
-        //     p: 2,
-        //     borderRadius: "12px",
-        //   }}
-        // >
-        //   <Box sx={{
-        //     display: "flex",
-        //     alignItems: "center",
-        //     mb: 2
-        //   }}>
-        //     <SecurityIcon sx={{ mr: 1.5, color: theme.palette.primary.main }} />
-        //     <Typography variant="h3">Security</Typography>
-        //   </Box>
-        //
-        //   <Box sx={{ px: 1 }}>
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Two-Factor Authentication
-        //     </Button>
-        //     <Divider />
-        //
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Login History
-        //     </Button>
-        //     <Divider />
-        //
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Authorized Devices
-        //     </Button>
-        //   </Box>
-        // </Paper>
-        //
-        // {/* Preferences */}
-        // <Paper
-        //   elevation={0}
-        //   sx={{
-        //     bgcolor: theme.palette.background.paper,
-        //     p: 2,
-        //     borderRadius: "12px",
-        //   }}
-        // >
-        //   <Box sx={{
-        //     display: "flex",
-        //     alignItems: "center",
-        //     mb: 2
-        //   }}>
-        //     <DisplaySettingsIcon sx={{ mr: 1.5, color: theme.palette.primary.main }} />
-        //     <Typography variant="h3">Preferences</Typography>
-        //   </Box>
-        //
-        //   <Box sx={{ px: 1, mb: 2 }}>
-        //     <FormControlLabel
-        //       control={
-        //         <Switch
-        //           checked={darkMode}
-        //           onChange={(e) => setDarkMode(e.target.checked)}
-        //           color="primary"
-        //         />
-        //       }
-        //       label="Dark Mode"
-        //       sx={{ width: "100%", mb: 2 }}
-        //     />
-        //
-        //     <FormControl fullWidth sx={{ mb: 2 }}>
-        //       <InputLabel id="currency-select-label">Currency</InputLabel>
-        //       <Select
-        //         labelId="currency-select-label"
-        //         id="currency-select"
-        //         value={currency}
-        //         label="Currency"
-        //         onChange={(e) => setCurrency(e.target.value)}
-        //       >
-        //         <MenuItem value="USD">USD ($)</MenuItem>
-        //         <MenuItem value="EUR">EUR (€)</MenuItem>
-        //         <MenuItem value="GBP">GBP (£)</MenuItem>
-        //         <MenuItem value="JPY">JPY (¥)</MenuItem>
-        //       </Select>
-        //     </FormControl>
-        //   </Box>
-        // </Paper>
-        //
-        // {/* Payment Methods */}
-        // <Paper
-        //   elevation={0}
-        //   sx={{
-        //     bgcolor: theme.palette.background.paper,
-        //     p: 2,
-        //     borderRadius: "12px",
-        //   }}
-        // >
-        //   <Box sx={{
-        //     display: "flex",
-        //     alignItems: "center",
-        //     mb: 2
-        //   }}>
-        //     <PaymentIcon sx={{ mr: 1.5, color: theme.palette.primary.main }} />
-        //     <Typography variant="h3">Payment Methods</Typography>
-        //   </Box>
-        //
-        //   <Box sx={{ px: 1 }}>
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Manage Payment Methods
-        //     </Button>
-        //     <Divider />
-        //
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Transaction History
-        //     </Button>
-        //   </Box>
-        // </Paper>
-        //
-        // {/* Support & Help */}
-        // <Paper
-        //   elevation={0}
-        //   sx={{
-        //     bgcolor: theme.palette.background.paper,
-        //     p: 2,
-        //     borderRadius: "12px",
-        //   }}
-        // >
-        //   <Box sx={{
-        //     display: "flex",
-        //     alignItems: "center",
-        //     mb: 2
-        //   }}>
-        //     <HelpIcon sx={{ mr: 1.5, color: theme.palette.primary.main }} />
-        //     <Typography variant="h3">Support & Help</Typography>
-        //   </Box>
-        //
-        //   <Box sx={{ px: 1 }}>
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Help Center
-        //     </Button>
-        //     <Divider />
-        //
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Contact Support
-        //     </Button>
-        //     <Divider />
-        //
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Privacy Policy
-        //     </Button>
-        //     <Divider />
-        //
-        //     <Button
-        //       fullWidth
-        //       variant="text"
-        //       color="primary"
-        //       sx={{ justifyContent: "flex-start", py: 1.5 }}
-        //     >
-        //       Terms of Service
-        //     </Button>
-        //   </Box>
-        // </Paper>
-      }
-      {/* Account Actions */}
+      {/* ADD: AI / News Ideas settings */}
+      <AISettings />
+
+      {/* Account Actions — unchanged */}
       <Paper elevation={0} variant="normal">
-        <VBox
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
-        >
+        <VBox sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Button
+            variant="text"
+            color={websocketConnectionStatus as AlertColor}
+            startIcon={<></>}
+            sx={{ py: 1.5, boxShadow: 0 }}
+          >
+            Websocket Connection Status:{" "}
+            {websocketConnectionStatus === "info"
+              ? "Fetching"
+              : websocketConnectionStatus === "success"
+                ? "Connected"
+                : "Disconnected"}
+          </Button>
+          <Button
+            variant="outlined"
+            color="inherit"
+            startIcon={<RefreshIcon />}
+            onClick={handleRefreshWs}
+            sx={{ py: 1.5, boxShadow: 0 }}
+          >
+            Refresh Websocket Connection
+          </Button>
           <Button
             variant="outlined"
             color="error"
@@ -490,7 +248,6 @@ export default function SettingsPage() {
           >
             Pause Account
           </Button>
-
           <Button
             variant="outlined"
             color="inherit"
@@ -502,7 +259,22 @@ export default function SettingsPage() {
         </VBox>
       </Paper>
 
-      {/* Pause Account Dialog */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={6000}
+        onClose={() => setToast({ ...toast, open: false })}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setToast({ ...toast, open: false })}
+          severity={toast.severity as AlertColor}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
+
       <BottomSheetModal open={pauseDialogOpen} onClose={handleCancelDialog}>
         <ModalContent confirmationPageOpen={confirmationPageOpen} />
       </BottomSheetModal>

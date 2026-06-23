@@ -21,7 +21,12 @@ export default function LogList() {
   useEffect(() => {
     invoke<string[]>("get_log_files")
       .then(setLogFiles)
-      .catch(console.error)
+      .catch((err) => {
+        const [status, msg] = err;
+        console.error(
+          `Failed to fetch log files via get_log_files: (${status}) ${msg}`,
+        );
+      })
       .finally(() => setLoading(false));
     // setLogFiles(["ah.log", "123.log"]);
     // setLoading(false);

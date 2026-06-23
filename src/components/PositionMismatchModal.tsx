@@ -41,30 +41,30 @@ export default function PositionsMismatchModal({
         [stock: string]: MismatchedPosition[];
       }>("mismatched_positions")) || {};
     set_positions_mismatch(mismatched_positions);
-  //   set_positions_mismatch({
-  //     AAPL: [
-  //       {
-  //         strategy: "LOL",
-  //         local: 13.0,
-  //         broker: 50,
-  //         fix: 13.0,
-  //       },
-  //       {
-  //         strategy: "LOL2",
-  //         local: 10.0,
-  //         broker: 50,
-  //         fix: 10.0,
-  //       },
-  //     ],
-  //     NVIDIA: [
-  //       {
-  //         strategy: "FK",
-  //         local: 5.0,
-  //         broker: 23,
-  //         fix: 5.0,
-  //       },
-  //     ],
-  //   });
+    //   set_positions_mismatch({
+    //     AAPL: [
+    //       {
+    //         strategy: "LOL",
+    //         local: 13.0,
+    //         broker: 50,
+    //         fix: 13.0,
+    //       },
+    //       {
+    //         strategy: "LOL2",
+    //         local: 10.0,
+    //         broker: 50,
+    //         fix: 10.0,
+    //       },
+    //     ],
+    //     NVIDIA: [
+    //       {
+    //         strategy: "FK",
+    //         local: 5.0,
+    //         broker: 23,
+    //         fix: 5.0,
+    //       },
+    //     ],
+    //   });
   }
   useEffect(() => {
     loadData();
@@ -94,13 +94,19 @@ export default function PositionsMismatchModal({
     setOpenConfirmation(false);
     invoke<[number, string]>("submit_position_mismatches", {
       fixed_positions: positions_mismatch,
-    }).then(([status, msg]) => {
-      if (status === 200) {
-        console.log("ok");
-      } else {
-        console.log(`error: ${msg}`);
-      }
-    });
+    })
+      .then(([status, msg]) => {
+        if (status === 200) {
+          console.log("ok");
+        } else {
+          console.log(`error: ${msg}`);
+        }
+      })
+      .catch(([status, msg]) => {
+        console.error(
+          `Failed to fetch log files via get_log_files: (${status}) ${msg}`,
+        );
+      });
 
     close();
   };
